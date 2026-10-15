@@ -64,6 +64,8 @@ export default function Bagiyuk() {
   const [help, setHelp] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
   const [offline, setOffline] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
+  const logoContainer = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null), cameraInput = useRef<HTMLInputElement>(null);
   const request = useRef<AbortController | null>(null);
   const [viewedBill, setViewedBill] = useState<Bill | null>(null);
@@ -88,6 +90,20 @@ export default function Bagiyuk() {
   }, []);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 5000); return () => clearTimeout(timer); }, [notice]);
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { setShowIntro(false); return; }
+    let cancelled = false;
+    let animation: import('lottie-web').AnimationItem | undefined;
+    const finish = () => { if (!cancelled) { clearTimeout(timeout); setShowIntro(false); } };
+    const timeout = setTimeout(finish, 4000);
+    void import('lottie-web').then(({ default: lottie }) => {
+      if (cancelled || !logoContainer.current) return;
+      animation = lottie.loadAnimation({ container: logoContainer.current, renderer: 'svg', loop: false, autoplay: true, path: '/logo-animation.json' });
+      animation.addEventListener('complete', finish);
+      animation.addEventListener('data_failed', finish);
+    }).catch(finish);
+    return () => { cancelled = true; clearTimeout(timeout); animation?.destroy(); };
+  }, []);
   const start = (next: Screen) => { if (store.draft && !store.history.some(h => h.id === store.draft?.id) && (store.draft.name || store.draft.items.length) && !window.confirm('Ganti draf yang belum selesai dengan patungan baru?')) return; store.start(); setViewedBill(null); setReceiptTotal(null); setReceiptNote(''); setPreview(''); setScanError(''); nav(next); };
   const continueDraft = () => nav('create');
   const goBack = () => {
@@ -145,7 +161,7 @@ export default function Bagiyuk() {
 
   return <main className={`app-shell screen-${screen}`}>
     <header className={`app-header ${screen === 'home' ? 'home-header' : ''}`}>
-      {screen === 'home' ? <a className="brand" href="#" aria-label="Bagiyuk beranda"><span className="brand-mark">b<span>•</span></span>bagiyuk<span className="brand-dot">.</span></a> : <Button variant="outline" size="icon" onClick={goBack} aria-label="Kembali"><ArrowLeft size={20} /></Button>}
+      {screen === 'home' ? <a className="brand" href="#" aria-label="Bagiyuk beranda"><img className="brand-logo" src="/logo.svg" alt="" width="31" height="36" />bagiyuk<span className="brand-dot">.</span></a> : <Button variant="outline" size="icon" onClick={goBack} aria-label="Kembali"><ArrowLeft size={20} /></Button>}
       {screen !== 'home' && <h1>{titles[screen]}</h1>}
       <Button variant="ghost" size="icon" aria-label="Bantuan" onClick={() => setHelp(!help)}><CircleHelp size={21} /></Button>
     </header>
@@ -229,7 +245,7 @@ export default function Bagiyuk() {
     {editor && b && <ItemEditor item={editor === 'new' ? undefined : editor} onClose={() => setEditor(null)} onSave={item => { update({ items: editor === 'new' ? [...b.items, item] : b.items.map(i => i.id === item.id ? item : i) }); setEditor(null); }} />}
     {notice && <div className="toast" role="status"><Check size={18} />{notice}<button onClick={() => setNotice('')} aria-label="Tutup pesan"><X size={16} /></button></div>}
     {store.storageError && <div className="storage-error" role="alert">{store.storageError}</div>}
-    {!store.ready && <div className="splash"><span className="brand">bagiyuk.</span><p>Patungan jadi gampang.</p><LoaderCircle className="spin" /></div>}
+    {(!store.ready || showIntro) && <div className="splash" role="status" aria-label="Bagiyuk sedang dimuat"><div ref={logoContainer} className="splash-logo" aria-hidden="true" /><span className="brand">bagiyuk.</span><p>Patungan jadi gampang.</p></div>}
   </main>;
 }
 

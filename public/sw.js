@@ -1,5 +1,5 @@
-const CACHE = 'bagiyuk-v2';
-const SHELL = ['/', '/cafe-hero.webp', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest'];
+const CACHE = 'bagiyuk-v4';
+const SHELL = ['/', '/cafe-hero.webp', '/logo.svg', '/favicon-32.png', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png', '/logo-animation.json', '/manifest.webmanifest'];
 self.addEventListener('message', event => {
   if (event.data?.type !== 'CACHE_ASSETS' || !Array.isArray(event.data.urls)) return;
   const urls = event.data.urls.filter(value => typeof value === 'string' && value.startsWith(`${self.location.origin}/_next/static/`)).slice(0, 200);

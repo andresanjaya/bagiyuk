@@ -14,6 +14,7 @@ test('manual flow: items, friends, shared allocation, result and persistent hist
   const { default: Bagiyuk } = await import('../src/components/bagiyuk');
   const { useBills } = await import('../src/lib/store');
   const app = render(React.createElement(Bagiyuk));
+  assert.ok(app.getByRole('status', { name: 'Bagiyuk sedang dimuat' }).querySelector('.splash-logo'));
   fireEvent.click(app.getByRole('button', { name: /Tulis manual/ }));
   fireEvent.change(app.getByPlaceholderText('Makan bareng di mana?'), { target: { value: 'Makan siang QA' } });
   fireEvent.click(app.getByRole('button', { name: /Tambah item pesanan/ }));

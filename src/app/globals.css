@@ -22,3 +22,6 @@ small,.subtle,.tiny-label,.section-description,.privacy-note,.bottom-hint,.hero-
 .app-shell:not(.screen-home)>.hero{background:transparent}
 .app-shell:not(.screen-home)>.hero .hero-image{display:none}
 .app-shell:not(.screen-home)>.page-content{position:relative;z-index:2;min-height:calc(100dvh - 210px - env(safe-area-inset-top));background:#fff;border-radius:27px 27px 0 0;margin-top:-19px;padding-top:15px}
+.scan-intro{padding-bottom:8px}.scan-intro h2{margin-bottom:0}
+.splash-logo{width:110px;height:126px}.splash-logo svg{margin:0}
+.brand-logo{display:block;flex:none;width:31px;height:36px;margin-right:9px}

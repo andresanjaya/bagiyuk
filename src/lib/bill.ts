@@ -2,7 +2,7 @@ import { z } from 'zod';
 const money = z.number().int().min(0).max(1_000_000_000);
 export const itemSchema = z.object({ id: z.string(), name: z.string().trim().min(1).max(80), quantity: z.number().int().min(1).max(1000), price: money, discount: money, assigned: z.array(z.string()).max(8) }).refine(i => i.discount <= i.price * i.quantity, 'Diskon melebihi harga item.');
 export const personSchema = z.object({ id: z.string(), name: z.string().trim().min(1).max(40), phone: z.string().max(30) });
-export const billSchema = z.object({ id: z.string(), name: z.string().trim().min(1).max(80), category: z.string(), source: z.enum(['manual', 'receipt']), date: z.string().datetime(), items: z.array(itemSchema).min(1).max(100), people: z.array(personSchema).min(1).max(8), host: z.string(), tax: money, service: money, discount: money, tip: money, rounding: z.number().int().min(-10000).max(10000), equal: z.boolean() });
+export const billSchema = z.object({ id: z.string(), name: z.string().trim().min(1).max(80), category: z.string(), source: z.enum(['manual', 'receipt']), date: z.string().datetime(), items: z.array(itemSchema).min(1).max(100), people: z.array(personSchema).min(1).max(8), host: z.string(), groupId: z.string().uuid().optional(), tax: money, service: money, discount: money, tip: money, rounding: z.number().int().min(-10000).max(10000), equal: z.boolean() });
 export type Item = z.infer<typeof itemSchema>;
 export type Person = z.infer<typeof personSchema>;
 export type Bill = z.infer<typeof billSchema>;

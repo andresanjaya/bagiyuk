@@ -5,7 +5,7 @@ import React from 'react';
 
 test('manual flow: items, friends, shared allocation, result and persistent history', async () => {
   const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost:3000/' });
-  Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, localStorage: dom.window.localStorage, React, IS_REACT_ACT_ENVIRONMENT: true });
+  Object.assign(globalThis, { window: dom.window, self: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, localStorage: dom.window.localStorage, React, IS_REACT_ACT_ENVIRONMENT: true });
   Object.defineProperty(globalThis, 'navigator', { value: dom.window.navigator, configurable: true });
   dom.window.scrollTo = () => {};
   dom.window.confirm = () => true;
@@ -38,7 +38,7 @@ test('manual flow: items, friends, shared allocation, result and persistent hist
   assert.equal(persisted.history[0].name, 'Makan siang QA');
   assert.equal(persisted.history[0].items[0].assigned.length, 2);
   fireEvent.click(app.getByRole('button', { name: 'Selesai, kembali ke beranda' }));
-  fireEvent.click(app.getByRole('button', { name: 'Riwayat' }));
+  fireEvent.click(app.getByRole('button', { name: 'Lihat semua' }));
   fireEvent.click(app.getByRole('button', { name: /Makan siang QA/ }));
   await waitFor(() => assert.ok(app.getByText('Beres, tinggal transfer!')));
   assert.equal(useBills.getState().draft, null);

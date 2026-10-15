@@ -1,7 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
-import { claimSchema, createSchema, hostClaimSchema, joinSchema, modeSchema, validatedSnapshot } from '@/lib/split';
+import { claimSchema, contributionSchema, createSchema, finalizedAmounts, hostClaimSchema, joinSchema, modeSchema, settlementSchema, transferStatusSchema, validatedSnapshot, type Room } from '@/lib/split';
+import { inviteOrigin } from '@/lib/invite-url';
 
 export const runtime = 'nodejs';
 const uuid = z.string().uuid();
@@ -33,7 +34,7 @@ async function body(request: Request) {
 }
 function failure(error: unknown) {
   const code = error instanceof z.ZodError || error instanceof SyntaxError ? 'INVALID_INPUT' : error instanceof Error ? error.message : 'SERVER_ERROR';
-  const statuses: Record<string, number> = { INVALID_INPUT: 400, UNAUTHORIZED: 401, FORBIDDEN: 403, FORBIDDEN_OR_EXPIRED: 403, INVITE_EXPIRED: 410, ROOM_EXPIRED: 410, ROOM_CLOSED: 409, ROOM_NOT_DRAFT: 409, ROOM_NOT_CLAIMING: 409, ROOM_FULL: 409, CLAIM_CONFLICT: 409, ITEM_HAS_CLAIMS: 409, ITEM_NOT_FOUND: 404, ROOM_NOT_FOUND: 404, INVALID_CLAIM: 400, INVALID_MODE: 400, CONFIG_MISSING: 503, RATE_LIMITED: 429 };
+  const statuses: Record<string, number> = { INVALID_INPUT: 400, UNAUTHORIZED: 401, FORBIDDEN: 403, FORBIDDEN_OR_EXPIRED: 403, INVITE_EXPIRED: 410, ROOM_EXPIRED: 410, ROOM_CLOSED: 409, ROOM_NOT_DRAFT: 409, ROOM_NOT_CLAIMING: 409, ROOM_NOT_FINALIZED: 409, INCOMPLETE_ALLOCATION: 409, VERSION_CONFLICT: 409, TOTAL_MISMATCH: 409, CONTRIBUTION_MISMATCH: 409, CONTRIBUTION_CONFLICT: 409, GROUP_CONFLICT: 409, ROOM_FULL: 409, CLAIM_CONFLICT: 409, ITEM_HAS_CLAIMS: 409, ITEM_NOT_FOUND: 404, ROOM_NOT_FOUND: 404, SETTLEMENT_NOT_FOUND: 404, TRANSFER_NOT_FOUND: 404, INVALID_CLAIM: 400, INVALID_MODE: 400, CONFIG_MISSING: 503, APP_URL_UNREACHABLE: 503, RATE_LIMITED: 429 };
   return json({ code: code in statuses ? code : 'SERVER_ERROR' }, statuses[code] ?? 500);
 }
 async function rpc(admin: ReturnType<typeof clients>['admin'], name: string, args: Record<string, unknown>) {
@@ -42,7 +43,7 @@ async function rpc(admin: ReturnType<typeof clients>['admin'], name: string, arg
   return data;
 }
 async function throttle(admin: ReturnType<typeof clients>['admin'], user: string, action: string) {
-  const limits: Record<string, number> = { sessions: 5, join: 10, invites: 10, open: 10, mode: 30, claims: 60, 'host-claim': 60 };
+  const limits: Record<string, number> = { sessions: 5, join: 10, invites: 10, open: 10, mode: 30, claims: 60, 'host-claim': 60, finalize: 10, settlements: 30, contributions: 30, transfers: 30 };
   const allowed = await rpc(admin, 'split_throttle', { p_hash: hash(`${user}:${action}`), p_limit: limits[action] ?? 10 });
   if (!allowed) throw new Error('RATE_LIMITED');
 }
@@ -66,7 +67,9 @@ export async function POST(request: Request, { params }: Context) {
     await throttle(admin, user, path.length === 1 ? path[0] : path[1]);
     if (path.length === 1 && path[0] === 'sessions') {
       const parsed = createSchema.parse(input);
-      const sessionId = await rpc(admin, 'split_create', { p_user: user, p_bill: validatedSnapshot(parsed.bill), p_host_name: parsed.hostName });
+      const sessionId = parsed.bill.groupId
+        ? await rpc(admin, 'split_create_group', { p_user: user, p_bill: validatedSnapshot(parsed.bill), p_host_name: parsed.hostName, p_group: parsed.bill.groupId })
+        : await rpc(admin, 'split_create', { p_user: user, p_bill: validatedSnapshot(parsed.bill), p_host_name: parsed.hostName });
       return json({ sessionId });
     }
     if (path.length === 1 && path[0] === 'join') {
@@ -77,10 +80,10 @@ export async function POST(request: Request, { params }: Context) {
     if (path.length !== 2) return json({ code: 'NOT_FOUND' }, 404);
     const sessionId = uuid.parse(path[0]);
     if (path[1] === 'invites') {
+      const origin = inviteOrigin(request, process.env.NEXT_PUBLIC_APP_URL);
       const invite = randomBytes(32).toString('hex');
       const expiresAt = await rpc(admin, 'split_invite', { p_user: user, p_session: sessionId, p_hash: hash(invite) });
-      const origin = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
-      return json({ url: `${origin.replace(/\/$/, '')}/join/${invite}`, expiresAt });
+      return json({ url: `${origin}/join/${invite}`, expiresAt });
     }
     if (path[1] === 'open') { await rpc(admin, 'split_open', { p_user: user, p_session: sessionId }); return json({ ok: true }); }
     if (path[1] === 'mode') {
@@ -98,6 +101,37 @@ export async function POST(request: Request, { params }: Context) {
       const parsed = hostClaimSchema.parse(input);
       if ((parsed.units === undefined) === (parsed.shared === undefined)) throw new Error('INVALID_INPUT');
       await rpc(admin, 'split_host_claim', { p_host: user, p_session: sessionId, p_item: parsed.itemId, p_participant: parsed.participantId, p_units: parsed.units ?? null, p_shared: parsed.shared ?? null });
+      return json({ ok: true });
+    }
+    if (path[1] === 'finalize') {
+      z.object({}).strict().parse(input);
+      const session = await admin.from('split_sessions').select('*').eq('id', sessionId).single();
+      if (session.error || !session.data || session.data.host_user_id !== user) throw new Error('FORBIDDEN');
+      if (session.data.state === 'finalized') return json({ ok: true });
+      const [items, participants, claims] = await Promise.all([
+        admin.from('split_session_items').select('*').eq('session_id', sessionId).order('sort_order'),
+        admin.from('split_participants').select('*').eq('session_id', sessionId),
+        admin.from('split_item_claims').select('*').eq('session_id', sessionId),
+      ]);
+      if (items.error || participants.error || claims.error) throw new Error('SERVER_ERROR');
+      const room = { session: session.data, items: items.data, participants: participants.data, claims: claims.data, summaries: [], settlements: [], contributions: [], transfers: [], me: user } as Room;
+      const rows = finalizedAmounts(room);
+      await rpc(admin, 'split_finalize_smart', { p_user: user, p_session: sessionId, p_expected_version: room.session.version, p_rows: rows });
+      return json({ ok: true });
+    }
+    if (path[1] === 'contributions') {
+      const parsed = contributionSchema.parse(input);
+      await rpc(admin, 'split_set_contributions', { p_user: user, p_session: sessionId, p_expected_version: parsed.expectedVersion, p_rows: parsed.rows.map(row => ({ participant_id: row.participantId, amount_idr: row.amount })) });
+      return json({ ok: true });
+    }
+    if (path[1] === 'transfers') {
+      const parsed = transferStatusSchema.parse(input);
+      await rpc(admin, 'split_set_transfer', { p_user: user, p_session: sessionId, p_transfer: parsed.transferId, p_status: parsed.status });
+      return json({ ok: true });
+    }
+    if (path[1] === 'settlements') {
+      const parsed = settlementSchema.parse(input);
+      await rpc(admin, 'split_set_payment', { p_user: user, p_session: sessionId, p_participant: parsed.participantId, p_status: parsed.status });
       return json({ ok: true });
     }
     return json({ code: 'NOT_FOUND' }, 404);

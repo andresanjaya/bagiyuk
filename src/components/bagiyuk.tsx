@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, ArrowRight, Camera, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, Coffee, Copy, Download, Home, ImagePlus, LoaderCircle, Pencil, Plus, ReceiptText, ScanLine, Share2, ShieldCheck, ShoppingBag, Sparkles, Trash2, Users, Utensils, Wallet, X, Plane, History, Heart, CirclePlus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, Coffee, Copy, Download, ImagePlus, LoaderCircle, Pencil, Plus, ReceiptText, ScanLine, Share2, ShieldCheck, ShoppingBag, Sparkles, Trash2, Users, Utensils, Wallet, X, Plane, Heart, CirclePlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { useBills } from '@/lib/store';
+import { GroupHomeBlock } from './groups';
 import { calculate, freshBill, id, itemTotal, rupiah, subtotal, summaryText, total, type Bill, type Item, type Person } from '@/lib/bill';
 import { receiptSchema } from '@/lib/receipt';
 
@@ -163,6 +164,7 @@ export default function Bagiyuk() {
         <button className="action-card" onClick={() => start('create')}><div className="action-art manual-art"><div className="mini-phone"><span /><span /><span /><span className="phone-button" /></div><Pencil className="art-pencil" size={44} strokeWidth={1.8} /><span className="art-star">✦</span><span className="manual-squiggle">〰</span></div><div className="action-copy"><strong>Tulis manual</strong><span>Isi sendiri, tetap simpel<ArrowRight size={16} /></span></div></button></div>
         {b && !history.some(h => h.id === b.id) && <button className="draft-card" onClick={continueDraft}><ReceiptText size={21} /><div className="grow"><strong>Lanjutkan drafmu</strong><small>{b.name || 'Patungan baru'} · {b.items.length} item</small></div><ChevronRight size={18} /></button>}
         <div className="how-it-works"><div><span>1</span>Tambah tagihan</div><i /><div><span>2</span>Pilih teman</div><i /><div><span>3</span>Bagi, beres!</div></div>
+        <GroupHomeBlock />
         <div className="section-heading history-heading"><h2>Patungan terakhir</h2><button className="text-link" onClick={() => nav('history')}>Lihat semua <ArrowRight size={15} /></button></div>
         {renderHistory(history.slice(0, 2))}
         <button className="demo-card" onClick={demo}><span className="demo-icon"><Coffee size={21} /></span><span><strong>Pertama kali pakai Bagiyuk?</strong><small>Coba bagi tagihan kopi bareng, yuk.</small></span><ArrowRight className="demo-arrow" size={18} /></button>
@@ -225,7 +227,6 @@ export default function Bagiyuk() {
       {screen === 'result' && !b && <Empty title="Pilih patunganmu dulu">Buka tagihan yang tersimpan di riwayat.<Button className="full-width" onClick={() => nav('history')}>Buka riwayat</Button></Empty>}
       {screen === 'history' && <><div className="history-intro"><span className="eyebrow">MOMEN BARENGMU</span><h2>Sudah dibagi,<br /><span>tinggal dikenang.</span></h2><p>Semua patungan, tersimpan di satu tempat.</p></div><div className="history-stats"><span><strong>{history.length}</strong>Patungan selesai</span><span><strong>{rupiah(history.reduce((s, b) => s + total(b), 0))}</strong>Total dibagi</span></div><div className="section-heading"><h3>Semua patungan</h3><span className="subtle">Terbaru dulu</span></div>{renderHistory(history)}<Button variant="outline" className="full-width new-history" onClick={() => start('create')}><Plus size={18} /> Buat patungan baru</Button></>}
     </div>
-    {(screen === 'home' || screen === 'history') && <nav className="bottom-nav" aria-label="Navigasi utama"><button className={screen === 'home' ? 'active' : ''} onClick={() => nav('home')} aria-current={screen === 'home' ? 'page' : undefined}><Home size={21} /><span>Beranda</span></button><button className="nav-create" onClick={() => start('create')} aria-label="Buat patungan baru"><Plus size={25} /></button><button className={screen === 'history' ? 'active' : ''} onClick={() => nav('history')} aria-current={screen === 'history' ? 'page' : undefined}><History size={21} /><span>Riwayat</span></button></nav>}
     {editor && b && <ItemEditor item={editor === 'new' ? undefined : editor} onClose={() => setEditor(null)} onSave={item => { update({ items: editor === 'new' ? [...b.items, item] : b.items.map(i => i.id === item.id ? item : i) }); setEditor(null); }} />}
     {notice && <div className="toast" role="status"><Check size={18} />{notice}<button onClick={() => setNotice('')} aria-label="Tutup pesan"><X size={16} /></button></div>}
     {store.storageError && <div className="storage-error" role="alert">{store.storageError}</div>}

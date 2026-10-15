@@ -31,7 +31,7 @@ npm start
 - Local draft recovery, completed history and reopening details.
 - Text copy/native sharing and PNG summary download.
 - PWA manifest, generated icons and production service worker with an offline shell and asset cache. Scan needs internet. Offline use requires an initial online load and service-worker asset caching.
-- Split Together Phase A: a saved local bill can start an online room; guests join anonymously by invite link or QR and claim separate units or shared items. Confirmed claims sync through Supabase Realtime.
+- Split Together: a saved local bill can start an online room; guests join anonymously by invite link or QR and claim separate units or shared items. The host can finalize a complete bill and manually track payment status. Reusable private name-template groups and multi-payer transfer plans are available after all three migrations are applied. Room updates sync through Supabase Realtime.
 
 The home page begins with real empty history. “Pertama kali pakai Bagiyuk?” opens a clearly labeled editable example.
 
@@ -45,7 +45,7 @@ API reference: [Google GenerateContent API](https://ai.google.dev/api/generate-c
 
 ## Activate Split Together
 
-Create a Supabase project, enable **Anonymous Sign-Ins** under Auth, and apply `supabase/migrations/202610140001_split_together_phase_a.sql` with the Supabase CLI migration workflow. The migration is additive. For a public deployment, enable Supabase CAPTCHA/Turnstile for anonymous sign-ins.
+Create a Supabase project, enable **Anonymous Sign-Ins** under Auth, and apply `supabase/migrations/202610140001_split_together_phase_a.sql`, `supabase/migrations/202610150001_split_together_phase_b.sql`, then `supabase/migrations/202610150002_smart_settlement.sql` in that order with the Supabase CLI migration workflow or SQL editor. Back up the database first. These migrations are additive; do not drop the older `split_settlements` table. Deploy the application only after the SQL succeeds, then smoke-test a new room and an older finalized room. If application deployment must be rolled back, restore the older app code while retaining the additive tables; do not casually reverse a migration containing payment records. For a public deployment, enable Supabase CAPTCHA/Turnstile for anonymous sign-ins.
 
 Set these values in `.env.local` and the deployment environment, then restart or redeploy:
 
@@ -56,13 +56,15 @@ SUPABASE_SECRET_KEY=YOUR_SERVER_ONLY_SECRET_KEY
 NEXT_PUBLIC_APP_URL=https://YOUR_PRODUCTION_DOMAIN
 ```
 
-Use `http://localhost:3000` for `NEXT_PUBLIC_APP_URL` locally. Never prefix the secret key with `NEXT_PUBLIC_`. The app generates a fresh 32-byte invitation token; only its SHA-256 hash is stored in the database. The raw link is shown when created, so copy it before leaving the invite screen. A new link can be issued later. The original local bill and MVP 1 history are unchanged.
+Set `NEXT_PUBLIC_APP_URL` to the public origin where friends can open Bagiyuk, such as `https://bagiyuk.vercel.app`. If left empty, invitation links use the browser's origin. `0.0.0.0` is only a server bind address and is never a usable invitation host. `localhost` and `127.0.0.1` work only on the same device. For friends on the internet, deploy the app with `/join/[token]` and `/api/split/[...path]`, set the Supabase environment variables in Vercel, redeploy, then create the invitation on that public site. For same-Wi-Fi testing, open the app using the computer's LAN IP and make sure the phone can reach that address. Restart the local server after changing `.env.local`. Never prefix the secret key with `NEXT_PUBLIC_`. The app generates a fresh 32-byte invitation token; only its SHA-256 hash is stored in the database. The raw link is shown when created, so copy it before leaving the invite screen. A new link can be issued later. The original local bill and MVP 1 history are unchanged.
 
-The SQL migration enables RLS on all session tables, grants member-only reads, keeps direct browser writes closed, and publishes only session version updates to Realtime. Server routes verify the user's Supabase JWT and call secret-key RPCs for atomic create/join/claim operations. Claims and joins lock the session row, so concurrent requests serialize. The route enforces a per-identity, per-action minute limit in Postgres. Anonymous-authenticated users have the `authenticated` database role. A browser whose local identity was deleted must join again as a new participant.
+The SQL migrations enable RLS on all session tables, grant member-only reads, keep direct browser writes closed, and publish only session version updates to Realtime. Server routes verify the user's Supabase JWT and call secret-key RPCs for atomic create/join/claim/finalize/payment operations. Claims, joins, finalization, and payment changes lock the session row, so concurrent requests serialize. The route enforces a per-identity, per-action minute limit in Postgres. Anonymous-authenticated users have the `authenticated` database role. A browser whose local identity was deleted must join again as a new participant.
 
-For cloud security and concurrency checks, point `.env.local` at a **dedicated test project**, apply the migration, and run `npm run test:cloud`. This creates anonymous test users and rooms. Check the join link and QR on two separate browser profiles or devices; a single profile shares one identity across tabs.
+For cloud security, concurrency, persistence, and Realtime checks, point `.env.local` at a **dedicated test project**, apply all three migrations, and run `npm run test:cloud`. This creates anonymous test users, private groups, and rooms. Check the join link and QR on two separate browser profiles or devices; a single profile shares one identity across tabs. Confirm that a guest claim appears on the host device, that finalization locks claims, and that a host transfer toggle appears on the guest device without a reload. Installing the PWA and scanning the QR with a real camera still require device verification.
 
-Phase A intentionally stops before finalization and payment tracking. Claim totals are estimates while items remain unassigned. The host sets shared items before opening claims, then opens claiming from the room. Reopening and bill editing during claiming are not supported.
+Claim totals are estimates while items remain unassigned. The host sets shared items before opening claims, then opens claiming from the room. Finalization requires every unit and shared item to be claimed, freezes the per-person totals, and treats the host's own share as paid. The host can mark guest shares paid or unpaid; this is a manual record, not a payment processor. Reopening and bill editing during claiming are not supported.
+
+MVP 3 groups store reusable display-name templates privately under the current anonymous identity. The group page can seed a normal local bill draft; QR joining still creates each real guest identity. Clearing browser data can lose access to private groups. Before finalizing a new room, the host may record multiple amounts paid at the restaurant. Their sum must equal the bill total. The database then stores a deterministic debtor-to-creditor transfer plan. Each transfer can be marked paid/unpaid by the host and has a status-change log. New rooms display transfer rows; already-finalized MVP 2 rooms keep their original per-person Paid/Unpaid read path and records. Reminder text is shared or copied only after a user tap; Bagiyuk never verifies or sends money.
 
 ## Data and boundaries
 

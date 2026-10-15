@@ -9,7 +9,7 @@ import { useBills } from '@/lib/store';
 import { archiveGroup, listGroups, loadGroup, saveGroup, type FriendGroup } from '@/lib/groups-client';
 
 function GroupLayout({ title, children, back = '/' }: { title: string; children: React.ReactNode; back?: string }) {
-  return <main className="app-shell split-together"><header className="app-header"><Button variant="outline" size="icon" asChild><Link href={back} aria-label="Kembali"><ArrowLeft size={20} /></Link></Button><h1>{title}</h1><span className="header-spacer" /></header><div className="page-content">{children}</div></main>;
+  return <main className="app-shell split-together"><header className="app-header"><Button variant="outline" size="icon" asChild><Link href={back} aria-label="Kembali"><ArrowLeft size={20} /></Link></Button><h1>{title}</h1><span className="header-spacer" /></header><div className="hero-gap" aria-hidden="true" /><div className="page-content over-hero">{children}</div></main>;
 }
 
 export function GroupHomeBlock() {

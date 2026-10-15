@@ -101,7 +101,6 @@ export default function Bagiyuk() {
   const unassigned = b?.items.filter(i => !i.assigned.length).length ?? 0;
   const history = store.history;
   const itemCount = b?.items.reduce((sum, i) => sum + i.quantity, 0) ?? 0;
-  const displayHero = ['home', 'create', 'items', 'friends', 'split'].includes(screen);
   const demo = () => {
     if (store.draft && !store.history.some(h => h.id === store.draft?.id) && (store.draft.name || store.draft.items.length) && !window.confirm('Ganti draf yang belum selesai dengan tagihan contoh?')) return;
     const bill = freshBill(); const friend = { id: id(), name: 'Nadia', phone: '' }; const friend2 = { id: id(), name: 'Dimas', phone: '' };
@@ -150,14 +149,14 @@ export default function Bagiyuk() {
       {screen !== 'home' && <h1>{titles[screen]}</h1>}
       <Button variant="ghost" size="icon" aria-label="Bantuan" onClick={() => setHelp(!help)}><CircleHelp size={21} /></Button>
     </header>
-    {offline && <div className="offline-banner">Kamu sedang offline. Patungan manual tetap bisa.</div>}
     {help && <div className="help-box"><div className="section-heading"><strong>Patungan tanpa ribet</strong><button aria-label="Tutup bantuan" onClick={() => setHelp(false)}><X size={18} /></button></div><p>1. Foto struk atau tulis item.<br />2. Tambahkan teman dan pilih pesanannya.<br />3. Bagikan hasil, beres!</p><p>Data tersimpan di browser perangkat ini. Foto struk dikirim ke Google Gemini hanya saat scan.</p>{installPrompt ? <Button size="small" onClick={async () => { await installPrompt.prompt(); setInstallPrompt(null); }}>Pasang Bagiyuk</Button> : <small>Untuk memasang aplikasi, pilih “Tambahkan ke layar utama” dari menu browser.</small>}</div>}
-    {displayHero && <section className={`hero ${screen === 'home' ? 'hero-home' : 'hero-compact'}`} aria-label="Momen patungan bersama teman">
-      {screen === 'home' && <div className="hero-copy"><span className="eyebrow"><span /> MAKAN BARENG, BAYAR TENANG</span><h1>Patungan?<br /><span>Bagiyuk.</span><Sparkles className="hero-sparkle" size={28} strokeWidth={1.5} /></h1><p><br /></p></div>}
+    {screen === 'home' ? <section className="hero hero-home" aria-label="Momen patungan bersama teman">
+      <div className="hero-copy"><span className="eyebrow"><span /> MAKAN BARENG, BAYAR TENANG</span><h1>Patungan?<br /><span>Bagiyuk.</span><Sparkles className="hero-sparkle" size={28} strokeWidth={1.5} /></h1><p><br /></p></div>
       <img className="hero-image" src="/cafe-hero.webp" alt="Tiga teman menikmati makanan dan kopi bersama di café" />
-      {screen === 'home' && <div className="hero-label"><Heart size={12} fill="currentColor" /> Bagi tagihan, bukan pertemanan.</div>}
-    </section>}
-    <div className={`page-content ${displayHero ? 'over-hero' : ''}`}>
+      <div className="hero-label"><Heart size={12} fill="currentColor" /> Bagi tagihan, bukan pertemanan.</div>
+    </section> : <div className="hero-gap" aria-hidden="true" />}
+    <div className="page-content over-hero">
+      {offline && <div className="offline-banner">Kamu sedang offline. Patungan manual tetap bisa.</div>}
       {screen === 'home' && <>
         <div className="drag-handle" /><div className="section-heading start-heading"><h2>Mulai patungan</h2><span className="tiny-label">Tanpa daftar, langsung beres</span></div>
         <div className="action-grid"><button className="action-card" onClick={() => start('scan')}><div className="action-art scan-art"><div className="mini-receipt"><span /><span /><span /><b>Rp</b><Check size={12} /></div><ScanLine className="scan-corners" size={67} strokeWidth={1.3} /><span className="art-star">✦</span><span className="ai-pill"><Sparkles size={10} /> AI SCAN</span></div><div className="action-copy"><strong>Foto struk</strong><span>Jepret, langsung kebaca<ArrowRight size={16} /></span></div></button>
@@ -197,7 +196,7 @@ export default function Bagiyuk() {
         <Bottom><Button className="full-width" onClick={() => nav('create')}>Simpan teman <Check size={18} /></Button></Bottom>
       </>}
       {screen === 'scan' && <>
-        <div className="scan-intro"><span className="scan-badge"><Sparkles size={15} /> DIBANTU AI</span><h2>Foto struk,<br /><span>sisanya biar kami.</span></h2><p>Satu foto untuk semua pesanan.<br />Tetap bisa kamu cek dan edit lagi.</p></div>
+        <div className="scan-intro"><span className="scan-badge"><Sparkles size={15} /> DIBANTU AI</span><h2>Foto struk,<br /><span>sisanya biar kami.</span></h2></div>
         <div className={`scan-frame ${busy ? 'is-scanning' : ''}`}>{preview ? <img src={preview} alt="Foto struk yang dipilih" /> : <><ReceiptText size={80} strokeWidth={1} /><strong>Struknya taruh di sini</strong><span>JPG, PNG, atau WebP · maks. 8 MB</span></>}{busy && <div className="scan-overlay"><LoaderCircle className="spin" size={30} /><strong>Lagi baca strukmu...</strong><span>Tunggu sebentar, ya.</span></div>}<i /><i /><i /><i /></div>
         <div className="scan-tips"><span><Check size={14} /> Foto dari atas</span><span><Check size={14} /> Tulisan jelas</span><span><Check size={14} /> Tanpa bayangan</span></div>
         {scanError && <div className="error-message" role="alert">{scanError}</div>}

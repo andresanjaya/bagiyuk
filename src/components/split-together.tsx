@@ -16,7 +16,7 @@ import { cloudIdentity, fetchRoom, splitApi } from '@/lib/split-client';
 function Layout({ title, children }: { title: string; children: React.ReactNode }) {
   const path = usePathname();
   const back = /\/(invite|claim|finalize|payments)$/.test(path) ? path.replace(/\/(invite|claim|finalize|payments)$/, '') : '/';
-  return <main className="app-shell split-together"><header className="app-header"><Button variant="outline" size="icon" onClick={() => window.location.assign(back)} aria-label="Kembali"><ArrowLeft size={20} /></Button><h1>{title}</h1><span className="header-spacer" /></header><div className="page-content">{children}</div></main>;
+  return <main className="app-shell split-together"><header className="app-header"><Button variant="outline" size="icon" onClick={() => window.location.assign(back)} aria-label="Kembali"><ArrowLeft size={20} /></Button><h1>{title}</h1><span className="header-spacer" /></header><div className="hero-gap" aria-hidden="true" /><div className="page-content over-hero">{children}</div></main>;
 }
 function Notice({ message }: { message: string }) { return message ? <p className="error-message" role="alert">{message}</p> : null; }
 function Loading() { return <p className="info-message" role="status"><LoaderCircle className="spin" size={17} /> Memuat ruang patungan…</p>; }
